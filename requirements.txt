@@ -1,6 +1,4 @@
 fastapi
 uvicorn
 pydantic
-transformers
-torch
 openenv-core

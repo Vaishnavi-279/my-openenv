@@ -1,25 +1,44 @@
 import os
 import asyncio
+import re
 from typing import Optional
-from transformers import pipeline
 from env.environment import SQLEnv
 from env.models import SQLAction
 
 # Read environment variables with defaults where required
 API_BASE_URL = os.getenv("API_BASE_URL", "local")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt2")
+MODEL_NAME = os.getenv("MODEL_NAME", "sql-fixer-v1")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if HF_TOKEN is None:
     raise ValueError("HF_TOKEN environment variable is required")
 
-# Initialize local text generation pipeline
-try:
-    llm = pipeline("text-generation", model=MODEL_NAME, device=-1)  # CPU only
-except Exception as e:
-    # Fallback to smaller model if specified model fails
-    print(f"Warning: Could not load {MODEL_NAME}, using distilgpt2 instead")
-    llm = pipeline("text-generation", model="distilgpt2", device=-1)
+def fix_sql_query(broken_query: str) -> str:
+    """
+    Simple rule-based SQL query fixer.
+    Fixes common SQL syntax errors.
+    """
+    fixed = broken_query.strip()
+    
+    # Fix common typos
+    fixes = {
+        r'\bSELEC\b': 'SELECT',
+        r'\bFRM\b': 'FROM',
+        r'\bWER\b': 'WHERE',
+        r'\bFORM\b': 'FROM',
+        r'\bWHER\b': 'WHERE',
+        r'\bJIN\b': 'JOIN',
+        r'\bON\s+(\w+)\.(\w+)=': r'ON \1.\2 =',
+        r'=(\w+)\.': r'= \1.',
+    }
+    
+    for pattern, replacement in fixes.items():
+        fixed = re.sub(pattern, replacement, fixed, flags=re.IGNORECASE)
+    
+    # Fix spacing issues
+    fixed = re.sub(r'\s+', ' ', fixed)
+    
+    return fixed.strip()
 
 async def run_inference():
     """
@@ -50,31 +69,9 @@ async def run_inference():
         while not done and steps < 5:
             steps += 1
             
-            # Use LLM to generate a fix for the broken query
-            prompt = f"""Fix this SQL query:
-Broken: {observation.broken_query}
-Schema: {observation.schema}
-Fixed: """
-            
+            # Use rule-based SQL fixer to generate a fix
             try:
-                response = llm(
-                    prompt,
-                    max_length=100,
-                    do_sample=False,
-                    num_return_sequences=1
-                )
-                
-                generated_text = response[0]["generated_text"]
-                # Extract just the fixed query part
-                if "Fixed: " in generated_text:
-                    fixed_query = generated_text.split("Fixed: ")[1].strip()
-                else:
-                    fixed_query = generated_text.replace(prompt, "").strip()
-                
-                # Clean up the query (remove extra text)
-                if "\n" in fixed_query:
-                    fixed_query = fixed_query.split("\n")[0]
-                    
+                fixed_query = fix_sql_query(observation.broken_query)
                 action = SQLAction(query=fixed_query)
                 last_error = None
                 

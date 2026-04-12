@@ -11,15 +11,23 @@ A simple test environment that echoes back messages sent to it.
 Perfect for testing HTTP server infrastructure.
 """
 
+import os
 from uuid import uuid4
 
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
 try:
+    from ..executor import execute_sql, grade, rows_match
     from ..models import SqlDebuggerAction, SqlDebuggerObservation
+    from ..tasks import ALL_TASKS, TASK_ORDER, Task
 except ImportError:
+    from executor import execute_sql, grade, rows_match
     from models import SqlDebuggerAction, SqlDebuggerObservation
+    from tasks import ALL_TASKS, TASK_ORDER, Task
+
+MAX_ATTEMPTS = 5
+_DEFAULT_TASK = os.getenv("SQL_DEBUGGER_TASK", "task_easy_syntax")
 
 
 class SqlDebuggerEnvironment(Environment):

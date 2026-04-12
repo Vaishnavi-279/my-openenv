@@ -54,9 +54,7 @@ class SqlDebuggerEnv(
         Returns:
             Dictionary representation suitable for JSON encoding
         """
-        return {
-            "message": action.message,
-        }
+        return {"sql": action.sql}
 
     def _parse_result(self, payload: Dict) -> StepResult[SqlDebuggerObservation]:
         """
@@ -70,12 +68,28 @@ class SqlDebuggerEnv(
         """
         obs_data = payload.get("observation", {})
         observation = SqlDebuggerObservation(
-            echoed_message=obs_data.get("echoed_message", ""),
-            message_length=obs_data.get("message_length", 0),
+            task_id=obs_data.get("task_id", ""),
+            difficulty=obs_data.get("difficulty", ""),
+            task_description=obs_data.get("task_description", ""),
+            schema_ddl=obs_data.get("schema_ddl", ""),
+            broken_query=obs_data.get("broken_query", ""),
+            error_message=obs_data.get("error_message", ""),
+            execution_result=obs_data.get("execution_result"),
+            expected_result=obs_data.get("expected_result"),
+            attempt=obs_data.get("attempt", 0),
+            max_attempts=obs_data.get("max_attempts", 5),
+            hint=obs_data.get("hint"),
             done=payload.get("done", False),
             reward=payload.get("reward"),
             metadata=obs_data.get("metadata", {}),
         )
+        # observation = SqlDebuggerObservation(
+        #     echoed_message=obs_data.get("echoed_message", ""),
+        #     message_length=obs_data.get("message_length", 0),
+        #     done=payload.get("done", False),
+        #     reward=payload.get("reward"),
+        #     metadata=obs_data.get("metadata", {}),
+        # )
 
         return StepResult(
             observation=observation,

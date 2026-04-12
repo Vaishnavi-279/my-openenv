@@ -1,4 +1,0 @@
-name: sql-debugger-env
-version: 1.0
-description: SQL Query Debugger Environment for AI Agents
-entrypoint: env.environment:SQLEnv
